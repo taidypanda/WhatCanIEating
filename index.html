@@ -1,0 +1,349 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row =>
+                    row.some(cell => cell !== '' && cell !== null && cell !== undefined)
+                );
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中午吃什么 - 跑马灯抽奖</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 36px;
+            margin-bottom: 20px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        #grid-container {
+            display: grid;
+            grid-template-columns: repeat(10, 60px);
+            grid-template-rows: repeat(10, 60px);
+            gap: 2px;
+            background: #fff;
+            border: 3px solid #34495e;
+            border-radius: 15px;
+            padding: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            position: relative;
+            width: 620px;
+            height: 620px;
+        }
+        .grid-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            font-size: 14px;
+            color: #2c3e50;
+            text-align: center;
+            transition: background 0.1s ease, color 0.1s ease;
+            word-break: break-word;
+            padding: 5px;
+        }
+        .highlight {
+            background: #e74c3c !important;
+            color: white !important;
+            font-weight: bold;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+        }
+        #stopButton {
+            margin-top: 30px;
+            padding: 12px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        #stopButton:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        #stopButton:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 26px;
+            color: #2c3e50;
+            font-weight: bold;
+            text-align: center;
+        }
+        #recipe {
+            margin-top: 30px;
+            max-width: 600px;
+            background: #fff;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: none;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        #recipe h3 {
+            margin-top: 0;
+            color: #e74c3c;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <h1>中午吃什么？</h1>
+    <div id="grid-container"></div>
+    <button id="stopButton">开始抽奖</button>
+    <div id="result"></div>
+    <div id="recipe"></div>
+
+    <script>
+        // 假数据
+        const dishes = [
+                        { name: "清蒸鲈鱼", recipe: "鲈鱼洗净划刀，姜葱铺底，蒸8分钟，淋热油和蒸鱼豉油。" },
+                        { name: "红烧肉", recipe: "五花肉切块，焯水后炒糖色，加生抽、老抽、料酒炖1小时，收汁。" },
+                        { name: "番茄炒蛋", recipe: "鸡蛋打散炒熟，番茄切块炒软，加盐、糖，混炒均匀。" },
+                        { name: "蒜蓉空心菜", recipe: "空心菜洗净，热油爆香蒜末，快速炒菜，加盐、鸡精调味。" },
+                        { name: "糖醋排骨", recipe: "排骨焯水，炒至金黄，加糖、醋、生抽、老抽炖30分钟，收汁。" },
+                        { name: "宫保鸡丁", recipe: "鸡丁腌制，炒花生、干辣椒、葱姜蒜，加酱汁快炒。" },
+                        { name: "麻婆豆腐", recipe: "豆腐切块焯水，炒牛肉末、豆瓣酱，加花椒、辣椒炖煮。" },
+                        { name: "鱼香肉丝", recipe: "猪肉丝腌制，炒木耳、胡萝卜丝，加鱼香汁快炒。" },
+                        { name: "干煸四季豆", recipe: "四季豆炸至微皱，炒蒜末、干辣椒、肉末，加盐调味。" },
+                        { name: "水煮鱼", recipe: "鱼片腌制，煮豆芽，热油浇辣椒、花椒，加入鱼片烫熟。" },
+                        { name: "白切鸡", recipe: "鸡煮熟后冰水浸泡，切块，蘸姜葱酱油食用。" },
+                        { name: "叉烧", recipe: "猪肉腌制叉烧酱，烤至金黄，切片食用。" },
+                        { name: "豉汁蒸排骨", recipe: "排骨腌制豆豉、蒜蓉，蒸20分钟，撒葱花。" },
+                        { name: "梅菜扣肉", recipe: "五花肉煮熟切片，梅菜炒香，叠放蒸1小时。" },
+                        { name: "菠萝咕咾肉", recipe: "猪肉裹淀粉炸熟，炒菠萝、青椒，加糖醋汁拌匀。" },
+                        { name: "东坡肉", recipe: "五花肉切块，焯水后加黄酒、酱油慢炖2小时。" },
+                        { name: "扬州炒饭", recipe: "米饭炒散，加鸡蛋、火腿、虾仁、青豆，调味翻炒。" },
+                        { name: "狮子头", recipe: "猪肉馅加水淀粉拌匀，做成大丸子，蒸熟后浇汁。" },
+                        { name: "红烧狮子头", recipe: "猪肉丸子炸金黄，加生抽、老抽、糖炖煮至入味。" },
+                        { name: "西湖醋鱼", recipe: "草鱼蒸熟，浇糖醋汁，撒姜丝，保持鱼形完整。" },
+                        { name: "龙井虾仁", recipe: "虾仁腌制，快速炒熟，加龙井茶叶，保持清香。" },
+                        { name: "松鼠鳜鱼", recipe: "鳜鱼切花刀，裹淀粉炸酥，浇糖醋汁，撒松子。" },
+                        { name: "叫花鸡", recipe: "鸡抹调料，用荷叶泥巴包裹，烤2小时，敲开食用。" },
+                        { name: "盐水鸭", recipe: "鸭子腌盐水，煮熟后冷却，切片，蘸酱食用。" },
+                        { name: "小笼包", recipe: "猪肉馅加皮冻，包入面皮，蒸8分钟，蘸醋食用。" },
+                        { name: "麻辣香锅", recipe: "各种蔬菜、肉类炒熟，加辣椒、花椒、豆瓣酱翻炒。" },
+                        { name: "酸菜鱼", recipe: "鱼片腌制，炒酸菜，加高汤煮沸，烫鱼片，浇热油。" },
+                        { name: "夫妻肺片", recipe: "牛肉、牛杂煮熟切片，拌辣椒油、花椒、芝麻酱。" },
+                        { name: "回锅肉", recipe: "五花肉煮熟切片，炒蒜苗、豆瓣酱，加甜面酱调味。" },
+                        { name: "辣子鸡", recipe: "鸡丁炸酥，炒干辣椒、花椒、葱蒜，撒芝麻。" },
+                        { name: "京酱肉丝", recipe: "猪肉丝腌制，炒甜面酱，卷薄饼食用。" },
+                        { name: "北京烤鸭", recipe: "鸭子腌制烤酥，切片，卷饼配甜面酱、葱丝。" },
+                        { name: "炸酱面", recipe: "猪肉末炒黄酱，煮面条，拌酱和黄瓜丝食用。" },
+                        { name: "驴打滚", recipe: "糯米粉蒸熟，裹红豆沙，滚黄豆粉，切块。" },
+                        { name: "卤煮火烧", recipe: "猪杂煮卤汁，火烧切块，加入卤汁煮透。" },
+                        { name: "清炒西兰花", recipe: "西兰花焯水，热油炒蒜末，加盐快炒。" },
+                        { name: "蚝油生菜", recipe: "生菜焯水，热油炒蒜末，加蚝油、盐调味。" },
+                        { name: "地三鲜", recipe: "土豆、茄子、青椒切块，炸熟后炒酱汁。" },
+                        { name: "东北乱炖", recipe: "猪肉、豆角、土豆、茄子等炖煮，加酱油调味。" },
+                        { name: "锅包肉", recipe: "猪里脊裹淀粉炸酥，炒糖醋汁裹匀。" },
+                        { name: "小鸡炖蘑菇", recipe: "鸡块炒香，加蘑菇、粉条炖1小时，调味。" },
+                        { name: "酱牛肉", recipe: "牛腱子加酱油、香料卤煮，冷却后切片。" },
+                        { name: "凉拌木耳", recipe: "木耳泡发煮熟，拌蒜泥、醋、辣椒油、酱油。" },
+                        { name: "拍黄瓜", recipe: "黄瓜拍碎，拌蒜泥、醋、酱油、芝麻油。" },
+                        { name: "醋溜白菜", recipe: "白菜切片，热油炒蒜，加醋、糖、酱油快炒。" },
+                        { name: "红烧茄子", recipe: "茄子切条炸软，炒蒜、酱油、糖，勾芡。" },
+                        { name: "干锅花菜", recipe: "花菜炸至金黄，炒蒜、干辣椒、肉片，加调料。" },
+                        { name: "香菇油菜", recipe: "油菜焯水，香菇炒香，加蚝油、盐快炒。" },
+                        { name: "青椒炒肉", recipe: "猪肉丝腌制，炒青椒、蒜，加酱油调味。" },
+                        { name: "木须肉", recipe: "猪肉丝炒鸡蛋、木耳、黄花菜，加盐调味。" },
+                        { name: "椒盐虾", recipe: "虾裹淀粉炸酥，炒椒盐、葱蒜，撒椒盐粉。" },
+                        { name: "蒜香鸡翅", recipe: "鸡翅腌制，炸至金黄，炒蒜末、酱油、蜂蜜。" },
+                        { name: "可乐鸡翅", recipe: "鸡翅煎黄，加可乐、酱油炖20分钟，收汁。" },
+                        { name: "啤酒鸭", recipe: "鸭块炒香，加啤酒、酱油、香料炖40分钟。" },
+                        { name: "红烧鲫鱼", recipe: "鲫鱼煎黄，加酱油、糖、姜葱炖20分钟。" },
+                        { name: "清炒虾仁", recipe: "虾仁腌制，炒葱姜，加盐、料酒快炒。" },
+                        { name: "香辣蟹", recipe: "螃蟹洗净切块，炒姜蒜、辣椒、花椒，加酱油。" },
+                        { name: "口水鸡", recipe: "鸡腿煮熟切片，浇辣椒油、芝麻酱、花椒油。" },
+                        { name: "酸辣汤", recipe: "木耳、豆腐、猪肉丝煮汤，加醋、胡椒粉、勾芡。" },
+                        { name: "蛋炒饭", recipe: "米饭炒散，加鸡蛋、葱花、盐，翻炒均匀。" },
+                        { name: "三鲜汤", recipe: "虾仁、鱼丸、木耳煮高汤，加盐、胡椒调味。" },
+                        { name: "西红柿鸡蛋汤", recipe: "西红柿炒软，加水煮沸，打入鸡蛋，加盐。" },
+                        { name: "紫菜蛋花汤", recipe: "紫菜泡发，水沸后加鸡蛋液、盐、葱花。" },
+                        { name: "冬瓜排骨汤", recipe: "排骨焯水，加冬瓜、姜片炖1小时，调味。" },
+                        { name: "莲藕排骨汤", recipe: "排骨焯水，加莲藕、姜片炖1.5小时，加盐。" },
+                        { name: "玉米排骨汤", recipe: "排骨焯水，加玉米、胡萝卜炖1小时，调味。" },
+                        { name: "黄豆猪蹄汤", recipe: "猪蹄焯水，加黄豆、姜片炖2小时，加盐。" },
+                        { name: "鸡丝凉面", recipe: "面条煮熟过冷水，拌鸡丝、黄瓜、芝麻酱。" },
+                        { name: "担担面", recipe: "面条煮熟，拌肉末、辣椒油、花椒、芝麻酱。" },
+                        { name: "热干面", recipe: "面条煮熟，拌芝麻酱、酱油、葱花、辣椒油。" },
+                        { name: "兰州拉面", recipe: "拉面煮熟，加牛肉、香菜、辣椒油、高汤。" },
+                        { name: "麻辣烫", recipe: "各种食材煮高汤，加辣椒、花椒、芝麻酱调味。" },
+                        { name: "过桥米线", recipe: "米线烫熟，加鸡汤、肉片、蔬菜、辣椒油。" },
+                        { name: "螺蛳粉", recipe: "米粉煮熟，加螺蛳汤、酸笋、辣椒油、花生。" },
+                        { name: "桂林米粉", recipe: "米粉烫熟，加卤肉、酸豆角、葱花、辣椒油。" },
+                        { name: "煎饼果子", recipe: "面糊摊成薄饼，加鸡蛋、油条、甜面酱。" },
+                        { name: "葱油饼", recipe: "面团加葱花擀平，煎至金黄，切块食用。" },
+                        { name: "韭菜盒子", recipe: "韭菜、鸡蛋、虾皮包面皮，煎至两面金黄。" },
+                        { name: "锅贴", recipe: "猪肉馅包饺子皮，煎至底部金黄，加水蒸熟。" },
+                        { name: "生煎包", recipe: "猪肉馅包面团，煎至底部酥脆，撒芝麻葱花。" },
+                        { name: "烧麦", recipe: "糯米、猪肉馅包面皮，蒸15分钟，蘸醋。" },
+                        { name: "春卷", recipe: "猪肉、蔬菜包春卷皮，炸至金黄，蘸酱。" },
+                        { name: "糯米鸡", recipe: "糯米、鸡肉、香菇包荷叶，蒸40分钟。" },
+                        { name: "珍珠丸子", recipe: "猪肉馅做丸子，裹糯米，蒸20分钟。" },
+                        { name: "酥皮月饼", recipe: "豆沙馅包面团，烤至金黄，表面酥脆。" },
+                        { name: "青团", recipe: "糯米粉加艾草汁，包豆沙馅，蒸熟。" },
+                        { name: "汤圆", recipe: "糯米粉包黑芝麻馅，煮至浮起，甜汤食用。" },
+                        { name: "红糖糍粑", recipe: "糯米团炸至金黄，裹红糖浆，撒芝麻。" },
+                        { name: "糖葫芦", recipe: "山楂串竹签，裹糖浆冷却，表面晶莹。" },
+                        { name: "驴肉火烧", recipe: "驴肉炖熟切碎，夹入火烧，配青椒。" },
+                        { name: "手抓饼", recipe: "面团擀薄煎熟，加鸡蛋、火腿、甜面酱。" },
+                        { name: "臭豆腐", recipe: "豆腐发酵后炸酥，蘸辣椒酱、蒜泥酱。" },
+                        { name: "烤冷面", recipe: "冷面煎熟，加鸡蛋、香肠、辣酱，卷起食用。" },
+                        { name: "铁板鱿鱼", recipe: "鱿鱼腌制，铁板煎熟，刷辣酱，撒孜然。" },
+                        { name: "烤羊肉串", recipe: "羊肉串腌制，炭火烤熟，撒孜然、辣椒粉。" },
+                        { name: "凉皮", recipe: "米浆蒸成薄皮，切条，拌辣椒油、醋、蒜泥。" },
+                        { name: "肉夹馍", recipe: "卤猪肉切碎，夹入白吉馍，加香菜、辣酱。" },
+                        { name: "羊肉泡馍", recipe: "馍掰碎，加羊肉汤、羊肉、粉丝，煮透。" }
+                    ];
+
+        const gridContainer = document.getElementById('grid-container');
+        const stopButton = document.getElementById('stopButton');
+        const resultDiv = document.getElementById('result');
+        const recipeDiv = document.getElementById('recipe');
+        let isSpinning = false;
+        let intervalId = null;
+        let currentIndex = 0;
+        let direction = 1; // 1为正向，-1为反向
+
+        // 定义螺旋路径，覆盖所有100个格子（从外到内）
+        const spiralPath = (() => {
+            const path = [];
+            const grid = Array(10).fill().map(() => Array(10).fill(false));
+            let row = 0, col = 0;
+            let dr = [0, 1, 0, -1]; // 右、下、左、上
+            let dc = [1, 0, -1, 0];
+            let dir = 0;
+
+            for (let i = 0; i < 100; i++) {
+                path.push(row * 10 + col);
+                grid[row][col] = true;
+                let nextRow = row + dr[dir];
+                let nextCol = col + dc[dir];
+                if (nextRow < 0 || nextRow >= 10 || nextCol < 0 || nextCol >= 10 || grid[nextRow][nextCol]) {
+                    dir = (dir + 1) % 4; // 转向
+                    nextRow = row + dr[dir];
+                    nextCol = col + dc[dir];
+                }
+                row = nextRow;
+                col = nextCol;
+            }
+            return path;
+        })();
+
+        // 初始化10x10网格
+        function initGrid() {
+            gridContainer.innerHTML = '';
+            for (let i = 0; i < 100; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('grid-cell');
+                const dish = dishes[i % dishes.length];
+                cell.textContent = dish.name;
+                cell.dataset.index = i % dishes.length;
+                gridContainer.appendChild(cell);
+            }
+        }
+
+        initGrid();
+
+        // 高亮指定格子
+        function highlightCell(index) {
+            const cells = document.querySelectorAll('.grid-cell');
+            cells.forEach(cell => cell.classList.remove('highlight'));
+            cells[index].classList.add('highlight');
+        }
+
+        // 开始跑马灯动画
+        function startSpinning() {
+            isSpinning = true;
+            stopButton.textContent = '停止抽奖';
+            stopButton.style.background = '#e74c3c';
+            resultDiv.textContent = '';
+            recipeDiv.style.display = 'none';
+
+            // 随机起点和方向
+            currentIndex = Math.floor(Math.random() * spiralPath.length);
+            direction = Math.random() < 0.5 ? 1 : -1;
+
+            intervalId = setInterval(() => {
+                currentIndex = (currentIndex + direction + spiralPath.length) % spiralPath.length;
+                highlightCell(spiralPath[currentIndex]);
+            }, 15); // 每10ms移动一次
+        }
+
+        // 停止动画并立即定格
+        function stopSpinning() {
+            if (!isSpinning) return;
+            isSpinning = false;
+            stopButton.textContent = '开始抽奖';
+            stopButton.style.background = '#3498db';
+            stopButton.disabled = true;
+
+            clearInterval(intervalId);
+
+            // 随机选择最终格子
+            const finalPathIndex = Math.floor(Math.random() * spiralPath.length);
+            const finalGridIndex = spiralPath[finalPathIndex];
+            highlightCell(finalGridIndex);
+
+            // 显示结果
+            const cells = document.querySelectorAll('.grid-cell');
+            const dishIndex = parseInt(cells[finalGridIndex].dataset.index);
+            resultDiv.textContent = `今日推荐：${dishes[dishIndex].name}`;
+            recipeDiv.innerHTML = `<h3>${dishes[dishIndex].name}</h3><p>${dishes[dishIndex].recipe}</p>`;
+            recipeDiv.style.display = 'block';
+            stopButton.disabled = false;
+        }
+
+        // 按钮点击事件
+        stopButton.addEventListener('click', () => {
+            if (!isSpinning) {
+                startSpinning();
+            } else {
+                stopSpinning();
+            }
+        });
+    </script>
+</body>
+</html>
